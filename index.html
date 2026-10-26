@@ -44,8 +44,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .rules { position: absolute; inset: 0; pointer-events: none; }
 .rules line { stroke: var(--dot); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 0 15; animation: march 6s linear infinite; }
 @keyframes march { to { stroke-dashoffset: -150; } }
-.legend { position: absolute; left: 146px; top: 300px; display: flex; flex-direction: column; pointer-events: none; }
-.lg { display: flex; align-items: center; gap: 9px; height: 30px; font: 500 13px var(--display); color: var(--dim); white-space: nowrap; }
+.legend { position: absolute; left: 140px; top: 310px; display: flex; flex-direction: column; pointer-events: none; }
+.lg { display: flex; align-items: center; gap: 8px; height: 36px; font: 500 14px var(--display); color: var(--dim); white-space: nowrap; }
 .sw { width: 14px; height: 14px; border-radius: 50%; background: var(--c); flex: none; }
 
 .tok {
@@ -57,10 +57,10 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   touch-action: manipulation;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.tok.circle { width: 54px; height: 54px; font-size: 23px; }
-.tok.lobe, .tok.cnos { font-size: 26px; }
-.tok.lobe { width: 62px; height: 62px; }
-.tok.cnos { width: 58px; height: 58px; }
+.tok.circle { width: 74px; height: 74px; font-size: 31px; }
+.tok.lobe, .tok.cnos { font-size: 31px; }
+.tok.lobe { width: 72px; height: 72px; }
+.tok.cnos { width: 70px; height: 70px; }
 .tok.tube {
   width: 40px; height: 52px; font-size: 15px; align-items: flex-end; padding-bottom: 7px; box-sizing: border-box;
   border-radius: 10px 10px 22px 22px; border: 2px solid rgba(255, 246, 251, 0.6);
@@ -80,9 +80,9 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   box-shadow: 0 0 34px 6px color-mix(in srgb, var(--c) 55%, transparent);
   touch-action: manipulation; transition: background 0.3s ease, box-shadow 0.3s ease;
 }
-.bigorb { width: 116px; height: 116px; font-size: 40px; animation: bob 4.2s ease-in-out infinite; }
+.bigorb { width: 130px; height: 130px; font-size: 46px; animation: bob 4.2s ease-in-out infinite; }
 .bigorb.r { animation-delay: -2.1s; }
-.tip { --c: #f3e2d0; width: 62px; height: 62px; font-size: 16px; letter-spacing: 0.08em; animation: pulse 2.4s ease-in-out infinite; }
+.tip { --c: #f3e2d0; width: 78px; height: 78px; font-size: 19px; letter-spacing: 0.08em; animation: pulse 2.4s ease-in-out infinite; }
 .tip[aria-disabled="true"] { opacity: 0.4; animation: none; pointer-events: none; }
 .heart.rx .bigorb { opacity: 0.15; }
 .heart.rx .tok { opacity: 0.3; }
@@ -166,8 +166,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     <div class="heart" id="heart" aria-label="Heart-shaped periodic table screen. Tap an element, then tap anywhere to launch an orb.">
       <div class="scene" id="scene">
         <svg class="rules" width="1000" height="880" viewBox="0 0 1000 880" aria-hidden="true">
-          <line x1="104" y1="264" x2="896" y2="264"/>
-          <line x1="236" y1="606" x2="764" y2="606"/>
+          <line x1="104" y1="280" x2="896" y2="280"/>
+          <line x1="250" y1="614" x2="750" y2="614"/>
         </svg>
         <div class="legend" id="legend"></div>
       </div>
@@ -177,12 +177,10 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   <div class="note">Everything outside the heart is hidden by the bag. Controls live here.</div>
   <div class="corner bl">
     <button class="ctl" id="btn-mask" type="button" aria-pressed="true">Heart mask</button>
-    <button class="ctl" id="btn-auto" type="button" aria-pressed="true">Auto sparkle</button>
   </div>
   <div class="corner br">
     <button class="ctl" id="btn-all" type="button">All 118</button>
     <button class="ctl" id="btn-sound" type="button" aria-pressed="true">Sound</button>
-    <button class="ctl" id="btn-full" type="button">Full screen</button>
   </div>
   <div class="sheet" id="sheet" hidden>
     <div class="sheet-top">
@@ -257,33 +255,29 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   var orbs = [], parts = [], rings = [], labels = [], bubbles = [];
   var autoOn = true, soundOn = true;
   var lastInput = 0, lastAuto = 0, lastLaunch = 0, pressed = false, colorTick = 0;
-  var TIP = { x: 500, y: 772 };
+  var TIP = { x: 500, y: 775 };
 
   /* ---------- legend ---------- */
-  var LEG = [['Alkali metal', 'alkali'], ['Alkaline earth', 'alkaline'], ['Transition', 'trans'], ['Post-transition', 'post'], ['Halogen', 'halogen'], ['Nonmetal', 'nonmetal'], ['F-block', 'lanth']];
+  var LEG = [['Alkali metal', 'alkali'], ['Alkaline earth', 'alkaline'], ['Transition', 'trans'], ['Post-transition', 'post'], ['Halogen', 'halogen'], ['Nonmetal', 'nonmetal']];
   document.getElementById('legend').innerHTML = LEG.map(function (l) {
     return '<div class="lg"><span class="sw" style="--c:' + HC[l[1]] + '"></span>' + l[0] + '</div>';
   }).join('');
 
   /* ---------- heart tokens ---------- */
-  var SIZE = { circle: [54, 54], lobe: [62, 62], tube: [40, 52], box: [46, 46], cnos: [58, 58] };
-  var ROWS = [328, 400, 472, 544];
+  var SIZE = { circle: [74, 74], lobe: [72, 72], tube: [40, 52], box: [46, 46], cnos: [70, 70] };
+  var ROWS = [345, 440, 535];
   var TOKS = [];
   function add(sym, x, y, type) { TOKS.push({ sym: sym, x: x, y: y, type: type || 'circle' }); }
-  add('H', 185, 200, 'lobe'); add('He', 815, 200, 'lobe');
-  ['Li', 'Na', 'K', 'Cs'].forEach(function (m, i) { add(m, 312, ROWS[i]); });
-  ['Mg', 'Ca', 'Sr', 'Ba'].forEach(function (m, i) { add(m, 370, ROWS[i]); });
-  ['La', 'Ce', 'Nd', 'Eu'].forEach(function (m, i) { add(m, 424, ROWS[i], 'tube'); });
-  ['Ac', 'Th', 'U', 'Pu'].forEach(function (m, i) { add(m, 468, ROWS[i], 'tube'); });
-  [['Ti', 'Cr', 'Mn'], ['Fe', 'Co', 'Ni'], ['Cu', 'Zn', 'Ag'], ['Au', 'Pt', 'W']].forEach(function (row, i) {
-    row.forEach(function (m, j) { add(m, 522 + j * 58, ROWS[i]); });
+  add('H', 185, 205, 'lobe'); add('He', 815, 205, 'lobe');
+  // columns: alkali, alkaline earth, transition, transition, post-transition, halogen
+  [
+    ['Li', 'Mg', 'Fe', 'Ti', 'Al', 'F'],
+    ['Na', 'Ca', 'Cu', 'Zn', 'Sn', 'Cl'],
+    ['K', 'Ba', 'Au', 'Ag', 'Pb', 'I']
+  ].forEach(function (row, i) {
+    row.forEach(function (m, j) { add(m, 320 + j * 88, ROWS[i]); });
   });
-  [['Al', 'Ga'], ['Sn', 'In'], ['Pb', 'Bi'], ['Tl', 'Po']].forEach(function (row, i) {
-    row.forEach(function (m, j) { add(m, 696 + j * 58, ROWS[i]); });
-  });
-  ['F', 'Cl', 'Br'].forEach(function (m, i) { add(m, 812, ROWS[i]); });
-  ['Ne', 'Ar'].forEach(function (m, i) { add(m, 872, ROWS[i], 'box'); });
-  ['C', 'N', 'O', 'S'].forEach(function (m, i) { add(m, 392 + i * 72, 662, 'cnos'); });
+  ['C', 'N', 'O', 'S'].forEach(function (m, i) { add(m, 368 + i * 88, 672, 'cnos'); });
 
   var tokEls = [];
   TOKS.forEach(function (t) {
@@ -304,12 +298,12 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   var bigL = document.createElement('button'), bigR = document.createElement('button'), tip = document.createElement('button');
   bigL.type = bigR.type = tip.type = 'button';
   bigL.className = 'bigorb'; bigR.className = 'bigorb r'; tip.className = 'tip';
-  bigL.style.left = (335 - 58) + 'px'; bigL.style.top = (165 - 58) + 'px';
-  bigR.style.left = (665 - 58) + 'px'; bigR.style.top = (165 - 58) + 'px';
-  tip.style.left = (TIP.x - 31) + 'px'; tip.style.top = (TIP.y - 31) + 'px';
+  bigL.style.left = (330 - 65) + 'px'; bigL.style.top = (170 - 65) + 'px';
+  bigR.style.left = (670 - 65) + 'px'; bigR.style.top = (170 - 65) + 'px';
+  tip.style.left = (TIP.x - 39) + 'px'; tip.style.top = (TIP.y - 39) + 'px';
   bigL.setAttribute('aria-label', 'Launch first element'); bigR.setAttribute('aria-label', 'Launch second element'); tip.setAttribute('aria-label', 'Launch orb');
-  bigL.addEventListener('click', function () { fireFrom(335, 165); });
-  bigR.addEventListener('click', function () { fireFrom(665, 165); });
+  bigL.addEventListener('click', function () { fireFrom(330, 170); });
+  bigR.addEventListener('click', function () { fireFrom(670, 170); });
   tip.textContent = 'MIX';
   tip.setAttribute('aria-label', 'Mix the two chosen elements');
   tip.addEventListener('click', function () { startReaction(); });
@@ -387,6 +381,36 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     if (actx && actx.state === 'suspended') { try { actx.resume(); } catch (e) {} }
     return actx;
   }
+  // iPad Safari keeps Web Audio muted until a touch unlocks it, and the silent switch mutes it
+  // unless an audio element is playing, so unlock on touch and start a silent looping clip.
+  var silentEl = null, unlocked = false;
+  function makeSilentWav() {
+    var n = 800, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    function w(o, str) { for (var i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); }
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true);
+    v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+    for (var i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function unlockAudio() {
+    var a = audio();
+    if (a) {
+      try {
+        a.resume();
+        var sb = a.createBuffer(1, 1, 22050), src = a.createBufferSource();
+        src.buffer = sb; src.connect(a.destination); src.start(0);
+      } catch (e) {}
+    }
+    try {
+      if (!silentEl) { silentEl = new Audio(makeSilentWav()); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); }
+      var pr = silentEl.play(); if (pr && pr.catch) pr.catch(function () {});
+    } catch (e) {}
+    if (a && a.state === 'running') unlocked = true;
+  }
+  ['touchend', 'click', 'pointerup', 'keydown'].forEach(function (ev) {
+    window.addEventListener(ev, function () { if (!unlocked || (actx && actx.state !== 'running')) unlockAudio(); }, true);
+  });
   function note(f, d, type, vol, delay, force) {
     if (!soundOn && !force) return;
     var a = audio(); if (!a) return;
@@ -590,10 +614,6 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     heart.classList.toggle('nomask', !on);
     sfx('mask');
   });
-  document.getElementById('btn-auto').addEventListener('click', function (e) {
-    autoOn = !autoOn; e.currentTarget.setAttribute('aria-pressed', autoOn ? 'true' : 'false');
-    sfx(autoOn ? 'auto-on' : 'auto-off');
-  });
   document.getElementById('btn-sound').addEventListener('click', function (e) {
     if (soundOn) sfx('sound-off');
     soundOn = !soundOn; e.currentTarget.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
@@ -603,19 +623,6 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     buildSheet(); sheet.hidden = false; sizeSheet(); sync(); sfx('sheet');
   });
   document.getElementById('btn-done').addEventListener('click', function () { sheet.hidden = true; sfx('sheet'); });
-  document.getElementById('btn-full').addEventListener('click', function () {
-    sfx('full');
-    var el = document.documentElement;
-    var req = el.requestFullscreen || el.webkitRequestFullscreen;
-    var inFs = document.fullscreenElement || document.webkitFullscreenElement;
-    var tipMsg = 'Full screen is not available in this view. In Safari, tap Share, then Add to Home Screen, and open it from the icon for a toolbar-free screen.';
-    try {
-      if (inFs) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
-      if (!req) { toast(tipMsg); return; }
-      var p = req.call(el);
-      if (p && p.catch) p.catch(function () { toast(tipMsg); });
-    } catch (e) { toast(tipMsg); }
-  });
 
   /* ---------- drawing ---------- */
   function star(x, y, r, rot) {
@@ -640,7 +647,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   /* ---------- reaction: atoms collide, bond forms, big explosion ---------- */
   var rx = null, shaking = false;
   var TA = 1.1, TB = 2.1, TEND = 4.7;
-  var SL = { x: 335, y: 165 }, SR = { x: 665, y: 165 }, EL_ = { x: 425, y: 430 }, ER_ = { x: 575, y: 430 };
+  var SL = { x: 330, y: 170 }, SR = { x: 670, y: 170 }, EL_ = { x: 425, y: 430 }, ER_ = { x: 575, y: 430 };
   var FONT = 'Fredoka, ui-rounded, system-ui, sans-serif';
 
   function startReaction() {
