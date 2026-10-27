@@ -27,9 +27,9 @@ body {
   overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 .shell {
-  position: absolute; inset: 0; padding-block: 8px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  position: absolute; inset: 0; padding-block: 0;
+  padding-left: max(4px, env(safe-area-inset-left, 0px));
+  padding-right: max(4px, env(safe-area-inset-right, 0px));
 }
 .fit { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .heart {
@@ -41,7 +41,7 @@ body {
 .scene { position: absolute; left: 0; top: 0; width: 1000px; height: 880px; transform-origin: 0 0; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 
-.rules { position: absolute; inset: 0; pointer-events: none; }
+.rules { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .rules line { stroke: var(--dot); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 0 15; animation: march 6s linear infinite; }
 @keyframes march { to { stroke-dashoffset: -150; } }
 .legend { position: absolute; left: 140px; top: 310px; display: flex; flex-direction: column; pointer-events: none; }
@@ -166,21 +166,22 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     <div class="heart" id="heart" aria-label="Heart-shaped periodic table screen. Tap an element, then tap anywhere to launch an orb.">
       <div class="scene" id="scene">
         <svg class="rules" width="1000" height="880" viewBox="0 0 1000 880" aria-hidden="true">
-          <line x1="104" y1="280" x2="896" y2="280"/>
-          <line x1="250" y1="614" x2="750" y2="614"/>
+          <line id="rule1" x1="104" y1="280" x2="896" y2="280"/>
+          <line id="rule2" x1="250" y1="614" x2="750" y2="614"/>
         </svg>
         <div class="legend" id="legend"></div>
       </div>
       <canvas id="cv"></canvas>
     </div>
   </div>
-  <div class="note">Everything outside the heart is hidden by the bag. Controls live here.</div>
   <div class="corner bl">
     <button class="ctl" id="btn-mask" type="button" aria-pressed="true">Heart mask</button>
+    <button class="ctl" id="btn-auto" type="button" aria-pressed="true">Auto sparkle</button>
   </div>
   <div class="corner br">
     <button class="ctl" id="btn-all" type="button">All 118</button>
     <button class="ctl" id="btn-sound" type="button" aria-pressed="true">Sound</button>
+    <button class="ctl" id="btn-full" type="button">Full screen</button>
   </div>
   <div class="sheet" id="sheet" hidden>
     <div class="sheet-top">
@@ -243,7 +244,12 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   });
 
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var DW = 1000, DH = 880;
+  // Logic runs in a 1000x880 design space centered on x=500. On a wider screen the heart stretches
+  // sideways: DW is the full design width, OX the extra on each side, KX spreads positions apart.
+  var DW = 1000, DH = 880, OX = 0, KX = 1;
+  var SL = { x: 330, y: 170 }, SR = { x: 670, y: 170 }; // where the two big orbs sit; used by the MIX sequence
+  function X(x) { return 500 + (x - 500) * KX; }
+  function sceneT(dx, dy) { return 'translate(' + (OX * s + (dx || 0)) + 'px,' + (dy || 0) + 'px) scale(' + s + ')'; }
   var shell = document.getElementById('shell'), fit = document.getElementById('fit');
   var heart = document.getElementById('heart'), scene = document.getElementById('scene');
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -362,13 +368,27 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   /* ---------- sizing ---------- */
   function layout() {
     var r = fit.getBoundingClientRect();
-    s = Math.max(0.2, Math.min(r.width / DW, r.height / DH) * 0.98);
+    // the heart shape fills only about 90% of its box, so size to the visible heart and let the empty margin overflow
+    s = Math.max(0.2, Math.min(r.width / 900, r.height / 830));
+    // then stretch the heart sideways to use the full screen width (up to 1.5x)
+    DW = Math.max(1000, Math.min(r.width / (s * 0.9), 1500));
+    KX = DW / 1000; OX = (DW - 1000) / 2;
     heart.style.width = (DW * s) + 'px'; heart.style.height = (DH * s) + 'px';
-    scene.style.transform = 'scale(' + s + ')';
+    scene.style.transform = sceneT(0, 0);
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = Math.round(DW * s * dpr); cv.height = Math.round(DH * s * dpr);
-    ctx.setTransform(dpr * s, 0, 0, dpr * s, 0, 0);
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * s * OX, 0);
+    placeAll();
     if (!sheet.hidden) sizeSheet();
+  }
+  function placeAll() {
+    tokEls.forEach(function (t) { t.el.style.left = (X(t.x) - t.w / 2) + 'px'; });
+    bigL.style.left = (X(330) - 65) + 'px'; bigR.style.left = (X(670) - 65) + 'px';
+    document.getElementById('legend').style.left = (X(140) - (KX - 1) * 40) + 'px';
+    var r1 = document.getElementById('rule1'), r2 = document.getElementById('rule2');
+    r1.setAttribute('x1', X(104)); r1.setAttribute('x2', X(896));
+    r2.setAttribute('x1', X(250)); r2.setAttribute('x2', X(750));
+    SL.x = X(330); SR.x = X(670);
   }
   layout();
   if (window.ResizeObserver) new ResizeObserver(layout).observe(fit);
@@ -523,13 +543,37 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   }
 
   /* ---------- bubbles ---------- */
+  var PASTELS = ['#ff9fd0', '#ffe36e', '#9fe6ff', '#c9a8ff', '#86f2d6', '#ffb78a'];
   function makeBubble(anywhere) {
     return {
       x: Math.random() * DW, y: anywhere ? Math.random() * DH : DH + 40 + Math.random() * 120,
-      r: 10 + Math.random() * 30, vy: 14 + Math.random() * 28, ph: Math.random() * 6.28, sw: 6 + Math.random() * 14
+      r: 16 + Math.random() * 34, vy: 14 + Math.random() * 28, ph: Math.random() * 6.28, sw: 6 + Math.random() * 14,
+      c: PASTELS[Math.floor(Math.random() * PASTELS.length)]
     };
   }
-  for (var bi = 0; bi < (reduce ? 12 : 26); bi++) bubbles.push(makeBubble(true));
+  for (var bi = 0; bi < (reduce ? 14 : 34); bi++) bubbles.push(makeBubble(true));
+
+  // tap or swipe through a bubble to pop it: sparkles, a hearts puff and a squeaky pop
+  function popAt(x, y) {
+    var hit = false;
+    bubbles.forEach(function (b, i) {
+      if (Math.hypot(b.x - x, b.y - y) < b.r + 14) {
+        hit = true;
+        for (var k = 0; k < 14; k++) {
+          var a = Math.random() * 6.283, sp = 60 + Math.random() * 190;
+          parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, life: 0.6 + Math.random() * 0.5, age: 0, size: 2 + Math.random() * 3, c: b.c, star: k % 3 === 0, spin: 0 });
+        }
+        parts.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 60, vy: -90, life: 1.1, age: 0, size: 7 + Math.random() * 4, c: '#ff7ab8', star: false, heart: true, spin: 0, grav: -80 });
+        rings.push({ x: b.x, y: b.y, age: 0, life: 0.4, max: b.r * 2, c: b.c });
+        bubbles[i] = makeBubble(false);
+      }
+    });
+    if (hit) {
+      var f = 700 + Math.random() * 500;
+      note(f, 0.09, 'sine', 0.12); note(f * 1.5, 0.12, 'triangle', 0.07, 0.05);
+    }
+    return hit;
+  }
 
   /* ---------- launch + burst (design units 1000x880) ---------- */
   function rndTarget() {
@@ -558,6 +602,14 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     for (var i = 0; i < n; i++) {
       var a = Math.random() * 6.283, sp = 70 + Math.random() * 300;
       parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.7 + Math.random() * 0.8, age: 0, size: 2 + Math.random() * 4.5, c: els[i % els.length].c, star: Math.random() < 0.28, spin: Math.random() * 6.28 });
+    }
+    // confetti streamers and a few floating hearts for extra silliness
+    for (var h = 0; h < (reduce ? 3 : 8); h++) {
+      parts.push({ x: x + (Math.random() - 0.5) * 60, y: y, vx: (Math.random() - 0.5) * 120, vy: -60 - Math.random() * 120, life: 1.3 + Math.random() * 0.8, age: 0, size: 6 + Math.random() * 6, c: PASTELS[h % PASTELS.length], star: false, heart: true, spin: 0, grav: -40 });
+    }
+    for (var cf = 0; cf < (reduce ? 8 : 26); cf++) {
+      var ca = Math.random() * 6.283, cs = 120 + Math.random() * 260;
+      parts.push({ x: x, y: y, vx: Math.cos(ca) * cs, vy: Math.sin(ca) * cs - 120, life: 1.2 + Math.random() * 0.9, age: 0, size: 4 + Math.random() * 4, c: PASTELS[cf % PASTELS.length], star: false, rect: true, spin: Math.random() * 6.28 });
     }
     rings.push({ x: x, y: y, age: 0, life: 0.65, max: 120 + Math.random() * 50, c: els[0].c });
     if (els.length > 1) rings.push({ x: x, y: y, age: -0.12, life: 0.65, max: 170, c: els[1].c });
@@ -588,14 +640,16 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     e.preventDefault();
     pressed = true; lastInput = performance.now(); lastLaunch = lastInput;
     audio(); keepAwake();
-    var p = pos(e); launch(p.x, p.y);
+    var p = pos(e);
+    if (!popAt(p.x, p.y)) launch(p.x, p.y);
   });
   heart.addEventListener('pointermove', function (e) {
     if (!pressed) return;
     var now = performance.now(); lastInput = now;
     var p = pos(e);
     parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60, life: 0.5, age: 0, size: 2 + Math.random() * 2, c: EL[selected[0]].c, star: true, spin: 0 });
-    if (now - lastLaunch > 170) { lastLaunch = now; launch(p.x, p.y); }
+    var popped = popAt(p.x, p.y);
+    if (!popped && now - lastLaunch > 170) { lastLaunch = now; launch(p.x, p.y); }
   });
   function up() { pressed = false; }
   window.addEventListener('pointerup', up);
@@ -614,10 +668,27 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     heart.classList.toggle('nomask', !on);
     sfx('mask');
   });
+  document.getElementById('btn-auto').addEventListener('click', function (e) {
+    autoOn = !autoOn; e.currentTarget.setAttribute('aria-pressed', autoOn ? 'true' : 'false');
+    sfx(autoOn ? 'auto-on' : 'auto-off');
+  });
   document.getElementById('btn-sound').addEventListener('click', function (e) {
     if (soundOn) sfx('sound-off');
     soundOn = !soundOn; e.currentTarget.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     if (soundOn) sfx('sound-on');
+  });
+  document.getElementById('btn-full').addEventListener('click', function () {
+    sfx('full');
+    var el = document.documentElement;
+    var req = el.requestFullscreen || el.webkitRequestFullscreen;
+    var inFs = document.fullscreenElement || document.webkitFullscreenElement;
+    var tipMsg = 'Full screen is not available in this view. In Safari, tap Share, then Add to Home Screen, and open it from the icon for a toolbar-free screen.';
+    try {
+      if (inFs) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+      if (!req) { toast(tipMsg); return; }
+      var p = req.call(el);
+      if (p && p.catch) p.catch(function () { toast(tipMsg); });
+    } catch (e) { toast(tipMsg); }
   });
   document.getElementById('btn-all').addEventListener('click', function () {
     buildSheet(); sheet.hidden = false; sizeSheet(); sync(); sfx('sheet');
@@ -647,7 +718,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   /* ---------- reaction: atoms collide, bond forms, big explosion ---------- */
   var rx = null, shaking = false;
   var TA = 1.1, TB = 2.1, TEND = 4.7;
-  var SL = { x: 330, y: 170 }, SR = { x: 670, y: 170 }, EL_ = { x: 425, y: 430 }, ER_ = { x: 575, y: 430 };
+  var EL_ = { x: 425, y: 430 }, ER_ = { x: 575, y: 430 };
   var FONT = 'Fredoka, ui-rounded, system-ui, sans-serif';
 
   function startReaction() {
@@ -665,7 +736,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   }
   function endReaction() {
     rx = null; heart.classList.remove('rx'); tip.removeAttribute('aria-disabled');
-    scene.style.transform = 'scale(' + s + ')'; cv.style.transform = ''; shaking = false;
+    scene.style.transform = sceneT(0, 0); cv.style.transform = ''; shaking = false;
   }
   function explode(r) {
     r.exploded = true; r.flash = 1; r.shake = 1;
@@ -765,7 +836,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   var last = performance.now(), clock = 0;
   function frame(now) {
     var dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
-    ctx.clearRect(0, 0, DW, DH);
+    ctx.clearRect(-OX - 10, -10, DW + 20, DH + 20);
 
     if (autoOn && !rx && sheet.hidden && now - lastInput > 3500 && now - lastAuto > (reduce ? 2600 : 1500)) {
       lastAuto = now;
@@ -776,10 +847,11 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     bubbles.forEach(function (b, i) {
       b.y -= b.vy * dt; b.x += Math.sin(clock * 0.8 + b.ph) * b.sw * dt;
       if (b.y < -b.r - 10) bubbles[i] = makeBubble(false);
-      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5;
-      ctx.fillStyle = 'rgba(255,190,240,0.05)';
+      var bg = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.1, b.x, b.y, b.r);
+      bg.addColorStop(0, 'rgba(255,255,255,0.35)'); bg.addColorStop(1, hexA(b.c, 0.14));
+      ctx.fillStyle = bg; ctx.strokeStyle = hexA(b.c, 0.55); ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(b.x - b.r * 0.4, b.y - b.r * 0.4, b.r * 0.14, 0, 6.283); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.beginPath(); ctx.arc(b.x - b.r * 0.4, b.y - b.r * 0.4, b.r * 0.16, 0, 6.283); ctx.fill();
     });
 
     ctx.globalCompositeOperation = 'lighter';
@@ -806,10 +878,19 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
     for (var p = parts.length - 1; p >= 0; p--) {
       var q = parts[p]; q.age += dt;
       if (q.age >= q.life) { parts.splice(p, 1); continue; }
-      q.vy += 260 * dt; q.vx *= 0.985; q.x += q.vx * dt; q.y += q.vy * dt; q.spin += dt * 4;
+      q.vy += (q.grav !== undefined ? q.grav : 260) * dt; q.vx *= 0.985; q.x += q.vx * dt; q.y += q.vy * dt; q.spin += dt * 4;
       var al = 1 - q.age / q.life;
       ctx.fillStyle = hexA(q.c, al);
-      if (q.star) star(q.x, q.y, q.size * 2.4 * (0.5 + al * 0.5), q.spin);
+      if (q.heart) {
+        var hs = q.size * (0.7 + al * 0.5);
+        ctx.beginPath(); ctx.moveTo(q.x, q.y + hs * 0.9);
+        ctx.bezierCurveTo(q.x - hs * 1.6, q.y - hs * 0.1, q.x - hs * 0.9, q.y - hs * 1.3, q.x, q.y - hs * 0.4);
+        ctx.bezierCurveTo(q.x + hs * 0.9, q.y - hs * 1.3, q.x + hs * 1.6, q.y - hs * 0.1, q.x, q.y + hs * 0.9);
+        ctx.fill();
+      } else if (q.rect) {
+        ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.spin * 2); ctx.fillRect(-q.size, -q.size * 0.4, q.size * 2, q.size * 0.8); ctx.restore();
+      }
+      else if (q.star) star(q.x, q.y, q.size * 2.4 * (0.5 + al * 0.5), q.spin);
       else { ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (0.4 + al * 0.6), 0, 6.283); ctx.fill(); }
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -833,16 +914,16 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 
     if (rx && rx.flash > 0.01) {
       ctx.fillStyle = 'rgba(255,255,255,' + (reduce ? rx.flash * 0.4 : rx.flash * 0.95) + ')';
-      ctx.fillRect(0, 0, DW, DH);
+      ctx.fillRect(-OX - 10, -10, DW + 20, DH + 20);
     }
     var sh = rx ? rx.shake : 0;
     if (sh > 0.01) {
       var dx = (Math.random() - 0.5) * 28 * sh * s, dy = (Math.random() - 0.5) * 28 * sh * s;
-      scene.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + s + ')';
+      scene.style.transform = sceneT(dx, dy);
       cv.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
       shaking = true;
     } else if (shaking) {
-      scene.style.transform = 'scale(' + s + ')'; cv.style.transform = ''; shaking = false;
+      scene.style.transform = sceneT(0, 0); cv.style.transform = ''; shaking = false;
     }
     requestAnimationFrame(frame);
   }
